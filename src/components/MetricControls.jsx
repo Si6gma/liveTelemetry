@@ -2,12 +2,12 @@ import React from "react";
 import { colors } from "../theme";
 
 const labels = {
-  rpm: "Engine RPM",
+  rpm: "RPM",
   throttle: "Throttle",
   voltage: "Battery Voltage",
   coolant_temp: "Coolant Temp",
   fuel_level: "Fuel Level",
-  lambda: "Air-Fuel Ratio",
+  lambda: "Lambda",
   oil_pressure: "Oil Pressure",
   oil_temp: "Oil Temp",
 };
