@@ -11,9 +11,6 @@
 # production
 /build
 
-# Funny auth codes
-firebase.js
-
 # misc
 .DS_Store
 .env.local
