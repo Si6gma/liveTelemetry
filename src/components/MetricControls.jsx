@@ -1,21 +1,25 @@
 import React from "react";
 import { colors } from "../theme";
 
-export default function MetricControls({
-  enabledMetrics,
-  toggleMetric,
-  isLive,
-  autoPaused,
-  setIsLive,
-}) {
+const labels = {
+  rpm: "Engine RPM",
+  throttle: "Throttle",
+  voltage: "Battery Voltage",
+  coolant_temp: "Coolant Temp",
+  fuel_level: "Fuel Level",
+  lambda: "Air-Fuel Ratio",
+  oil_pressure: "Oil Pressure",
+  oil_temp: "Oil Temp",
+};
+
+export default function MetricControls({ enabledMetrics, toggleMetric }) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-        gap: "0.75rem 1.5rem",
+        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+        gap: "1rem",
         marginBottom: "1rem",
-        alignItems: "center",
       }}
     >
       {Object.keys(colors).map((key) => (
@@ -39,29 +43,9 @@ export default function MetricControls({
               cursor: "pointer",
             }}
           />
-          {key.toUpperCase()}
+          {labels[key]}
         </label>
       ))}
-
-      <div style={{ gridColumn: "1 / -1", textAlign: "right" }}>
-        <button
-          style={{
-            backgroundColor: autoPaused
-              ? "#dc2626"
-              : isLive
-              ? "#1e293b"
-              : "#475569",
-            color: "#f1f5f9",
-            padding: "0.5rem 1rem",
-            borderRadius: "0.5rem",
-            border: "1px solid #334155",
-            cursor: "pointer",
-          }}
-          onClick={() => setIsLive(!isLive)}
-        >
-          {isLive ? "⏸ Pause" : "▶ Resume"}
-        </button>
-      </div>
     </div>
   );
 }

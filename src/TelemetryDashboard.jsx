@@ -123,6 +123,13 @@ export default function TelemetryDashboard() {
         toggleMetric={(key) =>
           setEnabledMetrics((prev) => ({ ...prev, [key]: !prev[key] }))
         }
+      />
+
+      <StatDisplay
+        enabledMetrics={enabledMetrics}
+        selectedStatMetric={selectedStatMetric}
+        setSelectedStatMetric={setSelectedStatMetric}
+        stats={stats}
         isLive={isLive}
         autoPaused={autoPaused}
         setIsLive={(live) => {
@@ -132,13 +139,6 @@ export default function TelemetryDashboard() {
             setAutoPaused(false);
           }
         }}
-      />
-
-      <StatDisplay
-        enabledMetrics={enabledMetrics}
-        selectedStatMetric={selectedStatMetric}
-        setSelectedStatMetric={setSelectedStatMetric}
-        stats={stats}
       />
 
       <Plot

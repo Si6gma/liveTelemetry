@@ -1,4 +1,3 @@
-// components/StatDisplay.jsx
 import React from "react";
 
 export default function StatDisplay({
@@ -6,13 +5,16 @@ export default function StatDisplay({
   selectedStatMetric,
   setSelectedStatMetric,
   stats,
+  isLive,
+  autoPaused,
+  setIsLive,
 }) {
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "1rem",
+        justifyContent: "space-between",
         flexWrap: "wrap",
         padding: "0.75rem 1rem",
         backgroundColor: "#0f172a",
@@ -23,35 +25,63 @@ export default function StatDisplay({
         marginBottom: "1.5rem",
       }}
     >
-      <label style={{ fontWeight: "500" }}>Metric:</label>
-      <select
-        value={selectedStatMetric}
-        onChange={(e) => setSelectedStatMetric(e.target.value)}
+      <div
         style={{
-          padding: "0.4rem 0.6rem",
-          borderRadius: "0.375rem",
-          backgroundColor: "#1e293b",
-          color: "#f8fafc",
-          border: "1px solid #475569",
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+          flexWrap: "wrap",
         }}
       >
-        {Object.keys(enabledMetrics).map((key) => (
-          <option key={key} value={key}>
-            {key}
-          </option>
-        ))}
-      </select>
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <span>
-          <strong>Min:</strong> {stats.min}
-        </span>
-        <span>
-          <strong>Max:</strong> {stats.max}
-        </span>
-        <span>
-          <strong>Mean:</strong> {stats.mean}
-        </span>
+        <label style={{ fontWeight: "500" }}>Metric:</label>
+        <select
+          value={selectedStatMetric}
+          onChange={(e) => setSelectedStatMetric(e.target.value)}
+          style={{
+            padding: "0.4rem 0.6rem",
+            borderRadius: "0.375rem",
+            backgroundColor: "#1e293b",
+            color: "#f8fafc",
+            border: "1px solid #475569",
+          }}
+        >
+          {Object.keys(enabledMetrics).map((key) => (
+            <option key={key} value={key}>
+              {key}
+            </option>
+          ))}
+        </select>
+
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <span>
+            <strong>Min:</strong> {stats.min}
+          </span>
+          <span>
+            <strong>Max:</strong> {stats.max}
+          </span>
+          <span>
+            <strong>Mean:</strong> {stats.mean}
+          </span>
+        </div>
       </div>
+
+      <button
+        style={{
+          backgroundColor: autoPaused
+            ? "#dc2626"
+            : isLive
+            ? "#1e293b"
+            : "#475569",
+          color: "#f1f5f9",
+          padding: "0.5rem 1rem",
+          borderRadius: "0.5rem",
+          border: "1px solid #334155",
+          cursor: "pointer",
+        }}
+        onClick={() => setIsLive(!isLive)}
+      >
+        {isLive ? "⏸ Pause" : "▶ Resume"}
+      </button>
     </div>
   );
 }
