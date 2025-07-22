@@ -141,57 +141,78 @@ export default function TelemetryDashboard() {
         }}
       />
 
-      <Plot
-        data={buildTraces(filteredData)}
-        layout={{
-          ...mergedYAxes,
-          margin: { t: 20, r: 30, b: 40, l: 40 },
-          showlegend: false,
-          dragmode: "pan",
-          plot_bgcolor: "#1e293b",
-          paper_bgcolor: "#1e293b",
-          font: { color: "#f8fafc" },
-          xaxis: {
-            visible: false,
-            showticklabels: false,
-            showgrid: false,
-            zeroline: false,
-          },
+      <div
+        style={{
+          backgroundColor: "#1e293b",
+          padding: "1rem",
+          borderRadius: "0.75rem",
+          border: "1px solid #334155",
+          marginBottom: "1.5rem",
         }}
-        config={{ responsive: true, displayModeBar: false }}
-        style={{ width: "100%", height: "500px" }}
-      />
+      >
+        <Plot
+          data={buildTraces(filteredData)}
+          layout={{
+            ...mergedYAxes,
+            margin: { t: 20, r: 30, b: 40, l: 40 },
+            showlegend: false,
+            dragmode: "pan",
+            plot_bgcolor: "#1e293b",
+            paper_bgcolor: "#1e293b",
+            font: { color: "#f8fafc" },
+            xaxis: {
+              visible: false,
+              showticklabels: false,
+              showgrid: false,
+              zeroline: false,
+            },
+            yaxis: { visible: false },
+          }}
+          config={{ responsive: true, displayModeBar: false }}
+          style={{ width: "100%", height: "450px" }} // <- change height here
+        />
+      </div>
 
-      <Plot
-        data={buildTraces(fullData, true)}
-        layout={{
-          ...mergedYAxes,
-          height: 150,
-          margin: { t: 0, r: 0, b: 30, l: 30 },
-          showlegend: false,
-          dragmode: "select",
-          plot_bgcolor: "#1e293b",
-          paper_bgcolor: "#1e293b",
-          font: { color: "#f8fafc" },
-          xaxis: {
-            visible: false,
-            showticklabels: false,
-            showgrid: false,
-            rangeslider: { visible: false },
-          },
-          selectdirection: "h",
+      <div
+        style={{
+          backgroundColor: "#1e293b",
+          padding: "1rem",
+          borderRadius: "0.75rem",
+          border: "1px solid #334155",
         }}
-        onSelected={(e) => {
-          if (e?.range?.x) {
-            const [start, end] = e.range.x;
-            setZoomRange({ start: Math.floor(start), end: Math.ceil(end) });
-            setIsLive(false);
-            setAutoPaused(true);
-          }
-        }}
-        config={{ responsive: true, displayModeBar: false }}
-        style={{ width: "100%" }}
-      />
+      >
+        <Plot
+          data={buildTraces(fullData, true)}
+          layout={{
+            ...mergedYAxes,
+            height: 150,
+            margin: { t: 0, r: 0, b: 30, l: 30 },
+            showlegend: false,
+            dragmode: "select",
+            plot_bgcolor: "#1e293b",
+            paper_bgcolor: "#1e293b",
+            font: { color: "#f8fafc" },
+            xaxis: {
+              visible: false,
+              showticklabels: false,
+              showgrid: false,
+              rangeslider: { visible: false },
+            },
+            yaxis: { visible: false },
+            selectdirection: "h",
+          }}
+          onSelected={(e) => {
+            if (e?.range?.x) {
+              const [start, end] = e.range.x;
+              setZoomRange({ start: Math.floor(start), end: Math.ceil(end) });
+              setIsLive(false);
+              setAutoPaused(true);
+            }
+          }}
+          config={{ responsive: true, displayModeBar: false }}
+          style={{ width: "100%" }}
+        />
+      </div>
     </div>
   );
 }
