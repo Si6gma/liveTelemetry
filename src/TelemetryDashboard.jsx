@@ -160,6 +160,7 @@ export default function TelemetryDashboard() {
             plot_bgcolor: "#1e293b",
             paper_bgcolor: "#1e293b",
             font: { color: "#f8fafc" },
+            hovermode: "x unified",
             xaxis: {
               visible: false,
               showticklabels: false,
@@ -169,7 +170,7 @@ export default function TelemetryDashboard() {
             yaxis: { visible: false },
           }}
           config={{ responsive: true, displayModeBar: false }}
-          style={{ width: "100%", height: "450px" }} // <- change height here
+          style={{ width: "100%", height: "450px" }}
         />
       </div>
 
@@ -192,6 +193,7 @@ export default function TelemetryDashboard() {
             plot_bgcolor: "#1e293b",
             paper_bgcolor: "#1e293b",
             font: { color: "#f8fafc" },
+            hovermode: "x unified",
             xaxis: {
               visible: false,
               showticklabels: false,
