@@ -1,54 +1,47 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import Plot from "react-plotly.js";
 import { ref, onValue, off } from "firebase/database";
 import { database } from "./firebase";
-import { colors } from "./theme";
 import MetricControls from "./components/MetricControls";
 import StatDisplay from "./components/StatDisplay";
-import MiniMapOverview from "./components/MiniMapOverview";
+import { colors } from "./theme";
+
+const metricKeyMap = {
+  rpm: "rpm",
+  throttle: "throttle_position",
+  voltage: "voltage",
+  coolant_temp: "coolant_temp",
+  fuel_level: "fuel_level",
+  lambda: "lambda",
+  oil_pressure: "oil_pressure",
+  oil_temp: "oil_temp",
+};
 
 export default function TelemetryDashboard() {
   const [fullData, setFullData] = useState([]);
-  const [enabledMetrics, setEnabledMetrics] = useState({
-    rpm: true,
-    throttle: true,
-    voltage: true,
-  });
-  const [isLive, setIsLive] = useState(true);
-  const [autoPaused, setAutoPaused] = useState(false);
+  const [enabledMetrics, setEnabledMetrics] = useState(
+    Object.fromEntries(Object.keys(colors).map((k) => [k, false]))
+  );
   const [zoomRange, setZoomRange] = useState(null);
   const [selectedStatMetric, setSelectedStatMetric] = useState("rpm");
-
-  const dataRef = useRef(null);
+  const [isLive, setIsLive] = useState(true);
+  const [autoPaused, setAutoPaused] = useState(false);
 
   const filteredData = useMemo(() => {
-    if (!zoomRange) return fullData.slice(-100);
-    return fullData.filter(
-      (d) => d.time >= zoomRange.start && d.time <= zoomRange.end
-    );
+    if (!zoomRange || fullData.length === 0) {
+      return fullData.slice(-100).map((d, i) => ({ ...d, index: i }));
+    }
+    return fullData
+      .map((d, i) => ({ ...d, index: i }))
+      .filter((d) => d.index >= zoomRange.start && d.index <= zoomRange.end);
   }, [fullData, zoomRange]);
 
   const stats = useMemo(() => {
     const values = filteredData
       .map((d) => d[selectedStatMetric])
       .filter((v) => typeof v === "number");
-
-    if (!values.length) {
-      return { min: "-", max: "-", mean: "-" };
-    }
-
-    const sum = values.reduce((a, b) => a + b, 0);
-    const mean = sum / values.length;
-
+    if (!values.length) return { min: "-", max: "-", mean: "-" };
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
     return {
       min: Math.min(...values),
       max: Math.max(...values),
@@ -57,48 +50,64 @@ export default function TelemetryDashboard() {
   }, [filteredData, selectedStatMetric]);
 
   useEffect(() => {
-    dataRef.current = ref(database, "telemetry/2025-07-21");
-
+    const dataRef = ref(database, "telemetry/2025-07-22");
     if (isLive) {
-      const unsubscribe = onValue(dataRef.current, (snapshot) => {
+      const unsubscribe = onValue(dataRef, (snapshot) => {
         const raw = snapshot.val();
         if (!raw) return;
 
         const parsed = Object.entries(raw)
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(([time, values]) => ({
-            time,
-            rpm: Number(values.rpm),
-            throttle: Number(values.throttle),
-            voltage: Number(values.voltage),
-          }));
+          .map(([_, values], i) => {
+            const entry = { index: i };
+            Object.keys(colors).forEach((key) => {
+              const rawKey = metricKeyMap[key] || key;
+              const raw = values[rawKey];
+              const num = Number(raw);
+              entry[key] = isNaN(num) ? null : num;
+            });
+            return entry;
+          });
 
-        setFullData(parsed);
+        setFullData(parsed.slice(-3000));
       });
 
-      return () => off(dataRef.current);
+      return () => off(dataRef);
     }
   }, [isLive]);
 
-  const toggleMetric = (key) => {
-    setEnabledMetrics((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const renderLines = (sourceData) =>
+  const buildTraces = (data, withAxis = true) =>
     Object.entries(enabledMetrics)
       .filter(([, v]) => v)
-      .map(([key]) => (
-        <Line
-          key={key}
-          type="monotone"
-          dataKey={key}
-          stroke={colors[key]}
-          strokeWidth={2}
-          dot={false}
-          isAnimationActive={false}
-          yAxisId={key === "rpm" ? "left" : "right"}
-        />
-      ));
+      .map(([key], i) => ({
+        x: data.map((d) => d.index),
+        y: data.map((d) => d[key]),
+        type: "scatter",
+        mode: "lines",
+        name: key,
+        line: { color: colors[key], width: 2 },
+        yaxis: withAxis ? `y${i + 1}` : "y",
+        hovertemplate: `${key}: %{y}<extra></extra>`,
+      }));
+
+  const yAxes = Object.keys(enabledMetrics)
+    .filter((key) => enabledMetrics[key])
+    .map((key, i) => {
+      return {
+        [`yaxis${i + 1}`]: {
+          title: key,
+          titlefont: { color: colors[key] },
+          tickfont: { color: colors[key] },
+          overlaying: i === 0 ? undefined : "y",
+          side: i === 0 ? "left" : "right",
+          position: i === 0 ? 0 : 1 - (i - 1) * 0.05,
+          showticklabels: false,
+          showgrid: false,
+        },
+      };
+    });
+
+  const mergedYAxes = Object.assign({}, ...yAxes);
 
   return (
     <div
@@ -111,7 +120,9 @@ export default function TelemetryDashboard() {
     >
       <MetricControls
         enabledMetrics={enabledMetrics}
-        toggleMetric={toggleMetric}
+        toggleMetric={(key) =>
+          setEnabledMetrics((prev) => ({ ...prev, [key]: !prev[key] }))
+        }
         isLive={isLive}
         autoPaused={autoPaused}
         setIsLive={(live) => {
@@ -130,55 +141,56 @@ export default function TelemetryDashboard() {
         stats={stats}
       />
 
-      <div
-        style={{
-          backgroundColor: "#1e293b",
-          padding: "0.5rem",
-          borderRadius: "1rem",
+      <Plot
+        data={buildTraces(filteredData)}
+        layout={{
+          ...mergedYAxes,
+          margin: { t: 20, r: 30, b: 40, l: 40 },
+          showlegend: false,
+          dragmode: "pan",
+          plot_bgcolor: "#1e293b",
+          paper_bgcolor: "#1e293b",
+          font: { color: "#f8fafc" },
+          xaxis: {
+            visible: false,
+            showticklabels: false,
+            showgrid: false,
+            zeroline: false,
+          },
         }}
-      >
-        <ResponsiveContainer width="100%" height={500}>
-          <LineChart
-            data={filteredData}
-            margin={{ top: 0, right: 5, left: 5, bottom: -15 }}
-            syncId="telemetry"
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis
-              dataKey="time"
-              stroke="#94a3b8"
-              tick={false}
-              tickFormatter={(t) => t.slice(-5)}
-            />
-            <YAxis yAxisId="left" stroke={colors.rpm} />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              stroke={colors.throttle}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#0f172a",
-                borderColor: "#334155",
-              }}
-              labelStyle={{ color: "#e2e8f0" }}
-              itemStyle={{ color: "#f8fafc" }}
-            />
-            {renderLines(filteredData)}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+        config={{ responsive: true, displayModeBar: false }}
+        style={{ width: "100%", height: "500px" }}
+      />
 
-      <MiniMapOverview
-        fullData={fullData}
-        enabledMetrics={enabledMetrics}
-        onBrushTimeRange={(range) => {
-          setZoomRange(range);
-          if (isLive) {
+      <Plot
+        data={buildTraces(fullData, true)}
+        layout={{
+          ...mergedYAxes,
+          height: 150,
+          margin: { t: 0, r: 0, b: 30, l: 30 },
+          showlegend: false,
+          dragmode: "select",
+          plot_bgcolor: "#1e293b",
+          paper_bgcolor: "#1e293b",
+          font: { color: "#f8fafc" },
+          xaxis: {
+            visible: false,
+            showticklabels: false,
+            showgrid: false,
+            rangeslider: { visible: false },
+          },
+          selectdirection: "h",
+        }}
+        onSelected={(e) => {
+          if (e?.range?.x) {
+            const [start, end] = e.range.x;
+            setZoomRange({ start: Math.floor(start), end: Math.ceil(end) });
             setIsLive(false);
             setAutoPaused(true);
           }
         }}
+        config={{ responsive: true, displayModeBar: false }}
+        style={{ width: "100%" }}
       />
     </div>
   );
