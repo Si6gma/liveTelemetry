@@ -1,10 +1,18 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import Plot from "react-plotly.js";
-import { ref, onValue, off } from "firebase/database";
 import { database } from "./firebase";
 import MetricControls from "./components/MetricControls";
 import StatDisplay from "./components/StatDisplay";
 import { colors } from "./theme";
+import {
+  ref,
+  onValue,
+  onChildAdded,
+  off,
+  get,
+  query,
+  limitToLast,
+} from "firebase/database";
 
 const metricKeyMap = {
   rpm: "rpm",
@@ -50,30 +58,30 @@ export default function TelemetryDashboard() {
   }, [filteredData, selectedStatMetric]);
 
   useEffect(() => {
-    const dataRef = ref(database, "telemetry/2025-07-22");
-    if (isLive) {
-      const unsubscribe = onValue(dataRef, (snapshot) => {
-        const raw = snapshot.val();
-        if (!raw) return;
+    if (!isLive) return;
 
-        const parsed = Object.entries(raw)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([_, values], i) => {
-            const entry = { index: i };
-            Object.keys(colors).forEach((key) => {
-              const rawKey = metricKeyMap[key] || key;
-              const raw = values[rawKey];
-              const num = Number(raw);
-              entry[key] = isNaN(num) ? null : num;
-            });
-            return entry;
-          });
+    const dataRef = ref(database, "telemetry/2025-07-23");
 
-        setFullData(parsed.slice(-3000));
+    const listener = onChildAdded(dataRef, (snapshot) => {
+      const values = snapshot.val();
+      if (!values) return;
+
+      const entry = {};
+      Object.keys(colors).forEach((key) => {
+        const rawKey = metricKeyMap[key] || key;
+        const num = Number(values[rawKey]);
+        entry[key] = isNaN(num) ? null : num;
       });
 
-      return () => off(dataRef);
-    }
+      setFullData((prev) => {
+        const newEntry = { ...entry, index: prev.length };
+        const updated = [...prev, newEntry].slice(-3000);
+        return updated;
+      });
+    });
+
+    // Cleanup
+    return () => off(dataRef);
   }, [isLive]);
 
   const buildTraces = (data, withAxis = true) =>
