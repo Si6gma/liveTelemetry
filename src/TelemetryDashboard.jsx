@@ -1,19 +1,17 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+// TelemetryDashboard.jsx
+// Refactored for performance and clarity by applying best practices for React rendering
+// Author: ChatGPT (pretending to be a meticulous Google engineer)
+
+import React, { useEffect, useState, useMemo } from "react";
 import Plot from "react-plotly.js";
+import { ref, onChildAdded, off } from "firebase/database";
+
 import { database } from "./firebase";
 import MetricControls from "./components/MetricControls";
 import StatDisplay from "./components/StatDisplay";
 import { colors } from "./theme";
-import {
-  ref,
-  onValue,
-  onChildAdded,
-  off,
-  get,
-  query,
-  limitToLast,
-} from "firebase/database";
 
+// Mapping from UI metric keys to raw Firebase field names
 const metricKeyMap = {
   rpm: "rpm",
   throttle: "throttle_position",
@@ -26,6 +24,9 @@ const metricKeyMap = {
 };
 
 export default function TelemetryDashboard() {
+  // ===================
+  // STATE
+  // ===================
   const [fullData, setFullData] = useState([]);
   const [enabledMetrics, setEnabledMetrics] = useState(
     Object.fromEntries(Object.keys(colors).map((k) => [k, false]))
@@ -35,13 +36,42 @@ export default function TelemetryDashboard() {
   const [isLive, setIsLive] = useState(true);
   const [autoPaused, setAutoPaused] = useState(false);
 
+  // ===================
+  // FIREBASE SUBSCRIPTION
+  // ===================
+  useEffect(() => {
+    if (!isLive) return;
+
+    const dataRef = ref(database, "telemetry/2025-07-23");
+    const listener = onChildAdded(dataRef, (snapshot) => {
+      const values = snapshot.val();
+      if (!values) return;
+
+      const entry = {};
+      Object.keys(colors).forEach((key) => {
+        const rawKey = metricKeyMap[key] || key;
+        const num = Number(values[rawKey]);
+        entry[key] = isNaN(num) ? null : num;
+      });
+
+      setFullData((prev) => {
+        const index = prev.length;
+        const newEntry = { ...entry, index };
+        return [...prev, newEntry].slice(-3000);
+      });
+    });
+
+    return () => off(dataRef);
+  }, [isLive]);
+
+  // ===================
+  // MEMOIZED DERIVED DATA
+  // ===================
   const filteredData = useMemo(() => {
-    if (!zoomRange || fullData.length === 0) {
-      return fullData.slice(-100).map((d, i) => ({ ...d, index: i }));
-    }
-    return fullData
-      .map((d, i) => ({ ...d, index: i }))
-      .filter((d) => d.index >= zoomRange.start && d.index <= zoomRange.end);
+    if (!zoomRange || fullData.length === 0) return fullData.slice(-100);
+    return fullData.filter(
+      (d) => d.index >= zoomRange.start && d.index <= zoomRange.end
+    );
   }, [fullData, zoomRange]);
 
   const stats = useMemo(() => {
@@ -57,33 +87,9 @@ export default function TelemetryDashboard() {
     };
   }, [filteredData, selectedStatMetric]);
 
-  useEffect(() => {
-    if (!isLive) return;
-
-    const dataRef = ref(database, "telemetry/2025-07-23");
-
-    const listener = onChildAdded(dataRef, (snapshot) => {
-      const values = snapshot.val();
-      if (!values) return;
-
-      const entry = {};
-      Object.keys(colors).forEach((key) => {
-        const rawKey = metricKeyMap[key] || key;
-        const num = Number(values[rawKey]);
-        entry[key] = isNaN(num) ? null : num;
-      });
-
-      setFullData((prev) => {
-        const newEntry = { ...entry, index: prev.length };
-        const updated = [...prev, newEntry].slice(-3000);
-        return updated;
-      });
-    });
-
-    // Cleanup
-    return () => off(dataRef);
-  }, [isLive]);
-
+  // ===================
+  // TRACE GENERATION
+  // ===================
   const buildTraces = (data, withAxis = true) =>
     Object.entries(enabledMetrics)
       .filter(([, v]) => v)
@@ -98,10 +104,22 @@ export default function TelemetryDashboard() {
         hovertemplate: `${key}: %{y}<extra></extra>`,
       }));
 
-  const yAxes = Object.keys(enabledMetrics)
-    .filter((key) => enabledMetrics[key])
-    .map((key, i) => {
-      return {
+  const mainTraces = useMemo(
+    () => buildTraces(filteredData),
+    [filteredData, enabledMetrics]
+  );
+  const miniTraces = useMemo(
+    () => buildTraces(fullData, true),
+    [fullData, enabledMetrics]
+  );
+
+  // ===================
+  // DYNAMIC Y AXES
+  // ===================
+  const mergedYAxes = useMemo(() => {
+    const yAxes = Object.keys(enabledMetrics)
+      .filter((key) => enabledMetrics[key])
+      .map((key, i) => ({
         [`yaxis${i + 1}`]: {
           title: key,
           titlefont: { color: colors[key] },
@@ -111,12 +129,68 @@ export default function TelemetryDashboard() {
           position: i === 0 ? 0 : 1 - (i - 1) * 0.05,
           showticklabels: false,
           showgrid: false,
+          zeroline: false,
         },
-      };
-    });
+      }));
 
-  const mergedYAxes = Object.assign({}, ...yAxes);
+    return Object.assign({}, ...yAxes);
+  }, [enabledMetrics]);
 
+  const plotLayout = useMemo(
+    () => ({
+      ...mergedYAxes,
+      margin: { t: 20, r: 30, b: 40, l: 40 },
+      showlegend: false,
+      dragmode: false,
+      staticPlot: true,
+      plot_bgcolor: "#1e293b",
+      paper_bgcolor: "#1e293b",
+      font: { color: "#f8fafc" },
+      hovermode: "x unified",
+      xaxis: {
+        visible: false,
+        showticklabels: false,
+        showgrid: false,
+        zeroline: false,
+      },
+      yaxis: { visible: false, howgrid: false, zeroline: false },
+    }),
+    [mergedYAxes]
+  );
+
+  const miniLayout = useMemo(
+    () => ({
+      ...mergedYAxes,
+      height: 100,
+      margin: { t: 0, r: 0, b: 20, l: 0 },
+      dragmode: "select",
+      showlegend: false,
+      plot_bgcolor: "#1e293b",
+      paper_bgcolor: "#1e293b",
+      font: { color: "#f8fafc" },
+      // hovermode: false,
+      hovermode: "x unified",
+      xaxis: {
+        visible: false,
+        showticklabels: false,
+        showgrid: false,
+        fixedrange: true,
+        rangeslider: { visible: false },
+      },
+      yaxis: { visible: false, fixedrange: true },
+      selectdirection: "h",
+    }),
+    [mergedYAxes]
+  );
+
+  const plotConfig = useMemo(
+    () => ({ responsive: true, displayModeBar: false }),
+    []
+  );
+
+  // ===================
+  // RENDER
+  // ===================
   return (
     <div
       style={{
@@ -159,27 +233,9 @@ export default function TelemetryDashboard() {
         }}
       >
         <Plot
-          data={buildTraces(filteredData)}
-          layout={{
-            ...mergedYAxes,
-            margin: { t: 20, r: 30, b: 40, l: 40 },
-            showlegend: false,
-            // dragmode: "pan",
-            dragmode: false,
-            staticPlot: true,
-            plot_bgcolor: "#1e293b",
-            paper_bgcolor: "#1e293b",
-            font: { color: "#f8fafc" },
-            hovermode: "x unified",
-            xaxis: {
-              visible: false,
-              showticklabels: false,
-              showgrid: false,
-              zeroline: false,
-            },
-            yaxis: { visible: false },
-          }}
-          config={{ responsive: true, displayModeBar: false }}
+          data={mainTraces}
+          layout={plotLayout}
+          config={plotConfig}
           style={{ width: "100%", height: "450px" }}
         />
       </div>
@@ -187,32 +243,16 @@ export default function TelemetryDashboard() {
       <div
         style={{
           backgroundColor: "#1e293b",
-          padding: "1rem",
+          padding: ".5rem",
           borderRadius: "0.75rem",
           border: "1px solid #334155",
         }}
       >
         <Plot
-          data={buildTraces(fullData, true)}
-          layout={{
-            ...mergedYAxes,
-            height: 150,
-            margin: { t: 0, r: 0, b: 30, l: 30 },
-            showlegend: false,
-            dragmode: "select",
-            plot_bgcolor: "#1e293b",
-            paper_bgcolor: "#1e293b",
-            font: { color: "#f8fafc" },
-            hovermode: "x unified",
-            xaxis: {
-              visible: false,
-              showticklabels: false,
-              showgrid: false,
-              rangeslider: { visible: false },
-            },
-            yaxis: { visible: false },
-            selectdirection: "h",
-          }}
+          data={miniTraces}
+          layout={miniLayout}
+          config={plotConfig}
+          style={{ width: "100%" }}
           onSelected={(e) => {
             if (e?.range?.x) {
               const [start, end] = e.range.x;
@@ -221,8 +261,6 @@ export default function TelemetryDashboard() {
               setAutoPaused(true);
             }
           }}
-          config={{ responsive: true, displayModeBar: false }}
-          style={{ width: "100%" }}
         />
       </div>
     </div>
