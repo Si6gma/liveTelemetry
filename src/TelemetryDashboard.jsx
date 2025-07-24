@@ -40,7 +40,7 @@ export default function TelemetryDashboard() {
   useEffect(() => {
     if (!isLive) return;
 
-    const dataRef = ref(database, "telemetry/2025-07-23");
+    const dataRef = ref(database, "telemetry/2025-07-24");
     const listener = onChildAdded(dataRef, (snapshot) => {
       const values = snapshot.val();
       if (!values) return;
@@ -53,8 +53,10 @@ export default function TelemetryDashboard() {
       });
 
       setFullData((prev) => {
+        const key = snapshot.key;
+        if (prev.some((d) => d._key === key)) return prev; // Skip duplicate
         const index = prev.length;
-        const newEntry = { ...entry, index };
+        const newEntry = { ...entry, index, _key: key };
         return [...prev, newEntry].slice(-3000);
       });
     });
