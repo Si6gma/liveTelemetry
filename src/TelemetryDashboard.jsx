@@ -1,6 +1,4 @@
 // TelemetryDashboard.jsx
-// Refactored for performance and clarity by applying best practices for React rendering
-// Author: ChatGPT (pretending to be a meticulous Google engineer)
 
 import React, { useEffect, useState, useMemo } from "react";
 import Plot from "react-plotly.js";
@@ -9,7 +7,7 @@ import { ref, onChildAdded, off } from "firebase/database";
 import { database } from "./firebase";
 import MetricControls from "./components/MetricControls";
 import StatDisplay from "./components/StatDisplay";
-import { colors } from "./theme";
+import { colors, labels } from "./theme";
 
 // Mapping from UI metric keys to raw Firebase field names
 const metricKeyMap = {
@@ -101,7 +99,9 @@ export default function TelemetryDashboard() {
         name: key,
         line: { color: colors[key], width: 2 },
         yaxis: withAxis ? `y${i + 1}` : "y",
-        hovertemplate: `${key}: %{y}<extra></extra>`,
+        hovertemplate: `<span style="color:${colors[key]}">●</span> ${
+          labels[key] || key
+        }: %{y}<extra></extra>`,
       }));
 
   const mainTraces = useMemo(

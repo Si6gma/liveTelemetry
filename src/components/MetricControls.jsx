@@ -1,16 +1,5 @@
 import React from "react";
-import { colors } from "../theme";
-
-const labels = {
-  rpm: "RPM",
-  throttle: "Throttle",
-  voltage: "Battery Voltage",
-  coolant_temp: "Coolant Temp",
-  fuel_level: "Fuel Level",
-  lambda: "Lambda",
-  oil_pressure: "Oil Pressure",
-  oil_temp: "Oil Temp",
-};
+import { colors, labels } from "../theme";
 
 export default function MetricControls({ enabledMetrics, toggleMetric }) {
   return (
@@ -22,30 +11,41 @@ export default function MetricControls({ enabledMetrics, toggleMetric }) {
         marginBottom: "1rem",
       }}
     >
-      {Object.keys(colors).map((key) => (
-        <label
-          key={key}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontWeight: "600",
-            color: colors[key],
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={enabledMetrics[key]}
-            onChange={() => toggleMetric(key)}
+      {Object.keys(colors).map((key) => {
+        const isEnabled = enabledMetrics[key];
+        const color = colors[key];
+
+        return (
+          <button
+            key={key}
+            onClick={() => toggleMetric(key)}
             style={{
-              accentColor: colors[key],
-              transform: "scale(1.2)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1rem",
+              fontWeight: "600",
+              borderRadius: "8px",
+              border: `2px solid ${isEnabled ? color : "#1e293b"}`,
+              backgroundColor: isEnabled ? `${color}22` : "#1e293b",
+              color,
               cursor: "pointer",
+              transition: "all 0.2s ease-in-out",
+              outline: "none",
             }}
-          />
-          {labels[key]}
-        </label>
-      ))}
+          >
+            {/* Hidden checkbox for accessibility (optional) */}
+            <input
+              type="checkbox"
+              checked={isEnabled}
+              onChange={() => toggleMetric(key)}
+              style={{ display: "none" }}
+            />
+            {labels[key]}
+          </button>
+        );
+      })}
     </div>
   );
 }
