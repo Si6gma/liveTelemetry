@@ -40,7 +40,9 @@ export default function TelemetryDashboard() {
   useEffect(() => {
     if (!isLive) return;
 
-    const dataRef = ref(database, "telemetry/2025-07-28");
+    const today = new Date().toISOString().split("T")[0];
+    const dataRef = ref(database, `telemetry/${today}`);
+
     const listener = onChildAdded(dataRef, (snapshot) => {
       const values = snapshot.val();
       if (!values) return;
